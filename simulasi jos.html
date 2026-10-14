@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulasi Dispersi Cahaya pada Prisma Segitiga</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --bg2:#1e1e2e;
+    --panel:rgba(30,41,59,.55);
+    --panel-strong:rgba(30,41,59,.8);
+    --border:rgba(148,163,184,.18);
+    --text:#e2e8f0;
+    --muted:#94a3b8;
+    --accent:#22d3ee;
+    --accent2:#818cf8;
+    --warn:#fbbf24;
+    --danger:#f87171;
+    --ok:#4ade80;
+    --radius:16px;
+    --mono:"JetBrains Mono","Fira Code",Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(1100px 600px at 12% -10%,rgba(34,211,238,.10),transparent 60%),
+      radial-gradient(900px 600px at 100% 0%,rgba(129,140,248,.12),transparent 55%),
+      var(--bg);
+    background-attachment:fixed;
+    line-height:1.45;
+  }
+  header{padding:18px 24px 6px;max-width:1500px;margin:0 auto}
+  header h1{font-size:clamp(1.15rem,2.2vw,1.65rem);font-weight:700;letter-spacing:.2px;
+    background:linear-gradient(90deg,#67e8f9,#a5b4fc,#f0abfc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  header p{color:var(--muted);font-size:.86rem;margin-top:2px}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px;padding:12px 24px 28px;max-width:1500px;margin:0 auto;align-items:start}
+  .glass{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 10px 40px rgba(0,0,0,.35)}
+  .stage{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .canvas-wrap{position:relative;height:clamp(380px,60vh,660px);overflow:hidden}
+  canvas#sim{position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:var(--radius)}
+  .badge{position:absolute;left:14px;top:12px;display:flex;align-items:center;gap:8px;max-width:calc(100% - 28px);
+    padding:7px 12px;border-radius:999px;font-size:.8rem;font-weight:600;
+    background:rgba(15,23,42,.72);border:1px solid var(--border);backdrop-filter:blur(8px)}
+  .badge i{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);flex:none}
+  .badge.warn i{background:var(--warn);box-shadow:0 0 10px var(--warn)}
+  .badge.tir i{background:var(--danger);box-shadow:0 0 10px var(--danger)}
+
+  /* Panel kontrol */
+  aside.controls{padding:16px 16px 18px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+  aside h2,.panel h2{font-size:.78rem;text-transform:uppercase;letter-spacing:1.4px;color:var(--accent);margin-bottom:10px;font-weight:700}
+  .group{padding:12px 0;border-top:1px solid var(--border)}
+  .group:first-of-type{border-top:none;padding-top:2px}
+  .ctl{margin-bottom:12px}
+  .ctl label{display:flex;justify-content:space-between;align-items:baseline;font-size:.84rem;margin-bottom:6px;color:var(--text)}
+  .ctl output{font-family:var(--mono);color:var(--accent);font-size:.84rem}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;outline:none;cursor:pointer;
+    background:linear-gradient(90deg,var(--accent) var(--p,50%),rgba(148,163,184,.25) var(--p,50%))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#f8fafc;
+    border:3px solid var(--accent);box-shadow:0 0 12px rgba(34,211,238,.7);cursor:grab}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#f8fafc;border:3px solid var(--accent);box-shadow:0 0 12px rgba(34,211,238,.7)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip,.btn{font:inherit;cursor:pointer;color:var(--text);background:rgba(148,163,184,.12);border:1px solid var(--border);border-radius:999px;
+    padding:5px 11px;font-size:.76rem;transition:.15s}
+  .chip:hover,.btn:hover{background:rgba(34,211,238,.18);border-color:rgba(34,211,238,.5)}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+  .seg label{position:relative;display:block;text-align:center;font-size:.8rem;padding:8px 6px;border-radius:10px;cursor:pointer;
+    background:rgba(148,163,184,.10);border:1px solid var(--border);transition:.15s}
+  .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg label:has(input:checked){background:linear-gradient(135deg,rgba(34,211,238,.28),rgba(129,140,248,.28));border-color:rgba(34,211,238,.6);color:#fff}
+  select{width:100%;font:inherit;font-size:.84rem;color:var(--text);background:rgba(15,23,42,.8);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+  select:disabled{opacity:.45}
+  .check{display:flex;align-items:center;gap:10px;font-size:.84rem;margin:8px 0;cursor:pointer}
+  .check input{accent-color:var(--accent);width:16px;height:16px}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .btn{border-radius:10px;padding:9px 10px;font-size:.84rem;font-weight:600;text-align:center}
+  .btn.primary{background:linear-gradient(135deg,rgba(34,211,238,.35),rgba(129,140,248,.35));border-color:rgba(34,211,238,.6)}
+  .btn.wide{grid-column:1/-1}
+  .hint{font-size:.72rem;color:var(--muted);margin-top:6px}
+
+  /* Telemetri */
+  .panel{padding:16px 18px 18px}
+  .tele-grid{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(0,1.6fr);gap:16px}
+  .formula{background:rgba(15,23,42,.55);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:.95rem}
+  .formula .eq{font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:1.02rem;margin:6px 0;color:#e0f2fe}
+  .formula small{display:block;color:var(--muted);font-size:.74rem;margin-top:8px;font-family:var(--mono)}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+  .m{background:rgba(15,23,42,.5);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+  .m span{display:block;font-size:.7rem;color:var(--muted)}
+  .m b{font-family:var(--mono);font-size:.98rem;font-weight:600;color:#f1f5f9}
+  .m.hl b{color:var(--accent)}
+  .status{margin-top:12px;padding:10px 14px;border-radius:12px;font-size:.88rem;font-weight:600;border:1px solid;
+    background:rgba(74,222,128,.10);border-color:rgba(74,222,128,.45);color:#bbf7d0}
+  .status.warn{background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.5);color:#fde68a}
+  .status.tir{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.55);color:#fecaca}
+  .status small{display:block;font-weight:400;opacity:.85;margin-top:2px}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:.8rem}
+  th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+  th{color:var(--muted);font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px}
+  th:first-child,td:first-child,th:last-child,td:last-child{text-align:left}
+  td{font-family:var(--mono)}
+  td:first-child,td:last-child{font-family:inherit}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:-1px}
+  .tablewrap{overflow-x:auto}
+  .foot{color:var(--muted);font-size:.74rem;margin-top:10px}
+
+  @media (max-width:1050px){
+    .layout{grid-template-columns:1fr;padding:10px 12px 24px}
+    aside.controls{position:static;max-height:none}
+    .tele-grid{grid-template-columns:1fr}
+    header{padding:14px 14px 4px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Simulasi Interaktif Dispersi Cahaya pada Prisma Segitiga</h1>
+  <p>Mata Kuliah Optik · Pendidikan Fisika S1 — Hukum Snellius, Dispersi Cauchy, Pantulan Internal Total</p>
+</header>
+
+<main class="layout">
+  <section class="stage">
+    <div class="canvas-wrap glass" id="wrap">
+      <canvas id="sim"></canvas>
+      <div class="badge" id="badge"><i></i><span id="badgeText">—</span></div>
+    </div>
+
+    <section class="panel glass">
+      <h2>Data &amp; Telemetri Fisika (real-time)</h2>
+      <div class="tele-grid">
+        <div class="formula">
+          <b style="font-size:.8rem;color:var(--muted)">Persamaan aktif</b>
+          <div class="eq">n<sub>1</sub> sin θ<sub>1</sub> = n<sub>2</sub> sin θ<sub>2</sub></div>
+          <div class="eq">n(λ) = B + C / λ²</div>
+          <div class="eq">δ = i<sub>1</sub> + r<sub>2</sub> − A</div>
+          <div class="eq">θ<sub>c</sub> = arcsin(1 / n)</div>
+          <small id="coefs">B = —, C = —</small>
+        </div>
+        <div>
+          <div class="metrics">
+            <div class="m"><span>Sudut datang i₁</span><b id="tI1">—</b></div>
+            <div class="m"><span>Sudut bias r₁ (<em class="refName">ref</em>)</span><b id="tR1">—</b></div>
+            <div class="m"><span>Sudut datang muka-2 i₂</span><b id="tI2">—</b></div>
+            <div class="m hl"><span>Sudut keluar r₂ (<em class="refName">ref</em>)</span><b id="tR2">—</b></div>
+            <div class="m"><span>n merah (700 nm)</span><b id="tNr">—</b></div>
+            <div class="m"><span>n ungu (400 nm)</span><b id="tNv">—</b></div>
+            <div class="m"><span>Δn = n<sub>ungu</sub> − n<sub>merah</sub></span><b id="tDn">—</b></div>
+            <div class="m hl"><span>Deviasi total δ (<em class="refName">ref</em>)</span><b id="tDref">—</b></div>
+            <div class="m"><span>δ merah</span><b id="tDr">—</b></div>
+            <div class="m"><span>δ ungu</span><b id="tDv">—</b></div>
+            <div class="m"><span>Dispersi sudut Δδ</span><b id="tDd">—</b></div>
+            <div class="m"><span>δ minimum (ref)</span><b id="tDmin">—</b></div>
+            <div class="m"><span>θc merah / ungu</span><b id="tThc">—</b></div>
+          </div>
+          <div class="status" id="statusBox"><span id="statusMain">—</span><small id="statusSub"></small></div>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Warna</th><th>λ (nm)</th><th>n(λ)</th><th>r₁ (°)</th><th>i₂ (°)</th><th>r₂ (°)</th><th>δ (°)</th><th>Keterangan</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="foot">Indeks bias slider didefinisikan pada λ = 580 nm (kuning). Koefisien C diskalakan terhadap (n − 1) dengan acuan kaca BK7 (C ≈ 0,0042 µm²), lalu dikali faktor pembesaran dispersi agar sebaran warna mudah dilihat di layar.</p>
+    </section>
+  </section>
+
+  <aside class="controls glass">
+    <h2>Panel Kontrol</h2>
+
+    <div class="group">
+      <div class="ctl">
+        <label for="i1">Sudut datang sinar θᵢ <output id="i1v"></output></label>
+        <input type="range" id="i1" min="0" max="80" step="0.1">
+      </div>
+      <div class="ctl">
+        <label for="nn">Indeks bias prisma n (580 nm) <output id="nnv"></output></label>
+        <input type="range" id="nn" min="1.30" max="1.90" step="0.01">
+        <div class="chips">
+          <button class="chip" data-n="1.33" type="button">Air 1,33</button>
+          <button class="chip" data-n="1.52" type="button">Kaca BK7 1,52</button>
+          <button class="chip" data-n="1.75" type="button">Flinta 1,75</button>
+          <button class="chip" data-n="1.90" type="button">Maks 1,90 (≈ intan*)</button>
+        </div>
+        <div class="hint">*Intan sesungguhnya n ≈ 2,42 (di luar rentang slider).</div>
+      </div>
+      <div class="ctl">
+        <label for="AA">Sudut puncak prisma A <output id="AAv"></output></label>
+        <input type="range" id="AA" min="30" max="90" step="0.5">
+      </div>
+      <div class="ctl" style="margin-bottom:0">
+        <label for="dd">Pembesaran dispersi (visual) <output id="ddv"></output></label>
+        <input type="range" id="dd" min="1" max="8" step="0.5">
+        <div class="hint">1× = nilai Cauchy realistis. Nilai lebih besar hanya memperjelas tampilan.</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Mode Cahaya</h2>
+      <div class="seg">
+        <label><input type="radio" name="mode" value="poly" checked> Polikromatik</label>
+        <label><input type="radio" name="mode" value="mono"> Monokromatik</label>
+      </div>
+      <select id="monoSel" aria-label="Warna monokromatik"></select>
+    </div>
+
+    <div class="group">
+      <h2>Opsi Tampilan</h2>
+      <label class="check"><input type="checkbox" id="cNormal" checked> Tampilkan garis normal &amp; label sudut</label>
+      <label class="check"><input type="checkbox" id="cStraight" checked> Tampilkan lintasan lurus (tanpa pembiasan)</label>
+    </div>
+
+    <div class="group">
+      <div class="btnrow">
+        <button class="btn primary" id="bPlay" type="button">⏸ Pause</button>
+        <button class="btn" id="bReset" type="button">↺ Reset</button>
+        <button class="btn wide" id="bMin" type="button">Atur ke deviasi minimum (warna acuan)</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   KONSTANTA & DATA SPEKTRUM
+   ===================================================================== */
+const DEG = Math.PI / 180;
+
+// 7 warna spektrum tampak (λ dalam nm) + warna tampilan (RGB)
+const SPECTRUM = [
+  { name:'Merah',  lambda:700, color:[255, 55, 55]  },
+  { name:'Jingga', lambda:620, color:[255,150, 30]  },
+  { name:'Kuning', lambda:580, color:[255,232, 40]  },
+  { name:'Hijau',  lambda:530, color:[ 60,255,105]  },
+  { name:'Biru',   lambda:470, color:[ 60,150,255]  },
+  { name:'Nila',   lambda:430, color:[105, 75,255]  },
+  { name:'Ungu',   lambda:400, color:[192, 85,255]  }
+];
+const REF = 2;            // warna acuan (kuning, 580 nm) pada mode polikromatik
+const LAMBDA_REF = 580;   // nm: indeks bias slider berlaku di panjang gelombang ini
+const DEFAULTS = { i1:40, n:1.52, A:60, disp:4, mode:'poly', mono:0, showNormal:true, showStraight:true };
+const state = Object.assign({ playing:true, time:0 }, DEFAULTS);
+
+/* =====================================================================
+   UTILITAS VEKTOR
+   ===================================================================== */
+const sub = (a,b)=>({x:a.x-b.x,y:a.y-b.y});
+const neg = a=>({x:-a.x,y:-a.y});
+const dot = (a,b)=>a.x*b.x+a.y*b.y;
+const cross = (a,b)=>a.x*b.y-a.y*b.x;
+const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const ang = v=>Math.atan2(v.y,v.x);
+const lerp = (a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});
+const f = (x,d=2)=>Number.isFinite(x)?x.toFixed(d):'—';
+const rgba = (c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+/* =====================================================================
+   FISIKA 1 — DISPERSI CAUCHY
+   n(λ) = B + C/λ²   (λ dalam µm, C dalam µm²)
+   Slider n menentukan n pada 580 nm. Koefisien C diskalakan terhadap
+   (n-1) dengan acuan BK7 (n_d = 1,5168, C ≈ 0,0042 µm²), lalu dikali
+   faktor pembesaran visual k. B dicari agar n(580 nm) = n_slider.
+   ===================================================================== */
+function cauchyCoeffs(nRef, k){
+  const C = 0.0042 * (nRef - 1) / 0.5168 * k;
+  const lam = LAMBDA_REF / 1000;           // µm
+  const B = nRef - C / (lam * lam);
+  return { B, C };
+}
+const nOf = (lambdaNm, co)=>{ const l = lambdaNm/1000; return co.B + co.C/(l*l); };
+
+// Konversi panjang gelombang -> RGB (untuk pita spektrum kontinu)
+function wavelengthToRGB(l){
+  let r=0,g=0,b=0;
+  if(l>=380&&l<440){r=-(l-440)/60;b=1;}
+  else if(l<490){g=(l-440)/50;b=1;}
+  else if(l<510){g=1;b=-(l-510)/20;}
+  else if(l<580){r=(l-510)/70;g=1;}
+  else if(l<645){r=1;g=-(l-645)/65;}
+  else {r=1;}
+  let k=1; if(l<420) k=0.3+0.7*(l-380)/40; else if(l>700) k=0.3+0.7*(780-l)/80;
+  return [r,g,b].map(v=>Math.round(255*Math.pow(Math.max(0,v*k),0.8)));
+}
+
+/* =====================================================================
+   GEOMETRI PRISMA
+   Koordinat kanvas (sumbu y ke bawah). Puncak prisma di atas, alas datar.
+   Normal keluar muka kiri  : (-cos(A/2), -sin(A/2))
+   Normal keluar alas       : (0, 1)
+   Normal keluar muka kanan : ( cos(A/2), -sin(A/2))
+   Sudut datang i1 diukur terhadap normal muka kiri. Arah sinar datang
+   = arah normal-ke-dalam diputar ke atas sebesar i1  ->  i1 = 30° pada
+   prisma 60° memberi sinar yang (hampir) simetris / deviasi minimum.
+   ===================================================================== */
+function buildGeometry(W,H,Arad,i1rad){
+  const half = Arad/2;
+  const L = Math.min(H*0.44, W*0.27);                 // panjang sisi miring
+  const h = L*Math.cos(half);                         // tinggi prisma
+  const cx = W*0.42, cy = H*0.52;
+  const V0 = { x:cx, y:cy-h/2 };                      // puncak
+  const V1 = { x:cx-L*Math.sin(half), y:cy+h/2 };     // alas kiri
+  const V2 = { x:cx+L*Math.sin(half), y:cy+h/2 };     // alas kanan
+  const edges = [
+    { a:V0, b:V1, n:{x:-Math.cos(half), y:-Math.sin(half)} },   // 0: muka kiri
+    { a:V1, b:V2, n:{x:0, y:1} },                               // 1: alas
+    { a:V2, b:V0, n:{x:Math.cos(half), y:-Math.sin(half)} }     // 2: muka kanan
+  ];
+  const E = lerp(V0,V1,0.42);                         // titik masuk pada muka kiri
+  const a0 = half - i1rad;                            // arah sinar datang
+  const d0 = { x:Math.cos(a0), y:Math.sin(a0) };
+  // jarak proyektor laser dibatasi agar tetap berada di dalam kanvas
+  let D = 260;
+  D = Math.min(D, (E.x-110)/Math.max(Math.cos(a0),0.2));
+  if(d0.y < -0.01) D = Math.min(D, (H-60-E.y)/(-d0.y));
+  if(d0.y >  0.01) D = Math.min(D, (E.y-50)/d0.y);
+  D = Math.max(D,60);
+  const S = { x:E.x-d0.x*D, y:E.y-d0.y*D };           // ujung kotak laser
+  const screenX = W - Math.min(110, W*0.16);
+  return { V0,V1,V2,edges,E,d0,S,screenX,half,L };
+}
+
+/* =====================================================================
+   FISIKA 2 — PELACAKAN SINAR (RAY TRACING VEKTOR)
+   Hukum Snellius bentuk vektor: n1 sin θ1 = n2 sin θ2
+     eta = n1/n2,  cosθ1 = -N·d
+     sin²θ2 = eta²(1 - cos²θ1)
+     d' = eta·d + (eta·cosθ1 - cosθ2)·N       (N menghadap sisi datang)
+   Pantulan Internal Total (TIR): bila n·sinθ_dalam > 1  (θ_dalam > θc = arcsin(1/n))
+     d' = d - 2(d·N)N                          (hukum pantul)
+   ===================================================================== */
+function raySeg(p,d,a,b){          // perpotongan sinar p + t·d dengan ruas a–b
+  const e = sub(b,a), den = cross(d,e);
+  if(Math.abs(den) < 1e-12) return null;
+  const ap = sub(a,p);
+  const t = cross(ap,e)/den, s = cross(ap,d)/den;
+  return (t>1e-6 && s>=-1e-9 && s<=1+1e-9) ? {t,s} : null;
+}
+
+function traceRay(n, Arad, i1rad, geo, meta){
+  const pts = [geo.S, geo.E];
+  const events = [];
+
+  // --- (1) Antarmuka udara -> kaca pada muka kiri ---
+  const N1 = geo.edges[0].n;                          // menghadap sisi udara (sisi datang)
+  const cosi = -dot(geo.d0,N1);
+  const eta = 1/n;                                    // n1/n2 = 1/n
+  const cost = Math.sqrt(1 - eta*eta*(1-cosi*cosi));
+  let d = { x:eta*geo.d0.x+(eta*cosi-cost)*N1.x, y:eta*geo.d0.y+(eta*cosi-cost)*N1.y };
+  events.push({ type:'enter', P:geo.E, N:N1, dIn:geo.d0, dOut:d, angIn:Math.acos(cosi), angOut:Math.acos(cost) });
+
+  // --- (2) Perambatan di dalam prisma: refraksi keluar atau TIR (berulang) ---
+  let pos = geo.E, cur = 0, tir = 0, exited = false, outDir = null, exitEdge = -1;
+  for(let b=0; b<10; b++){
+    let best = null;
+    for(let k=0;k<3;k++){
+      if(k===cur) continue;
+      const e = geo.edges[k], h = raySeg(pos,d,e.a,e.b);
+      if(h && (!best || h.t<best.t)) best = { t:h.t, k };
+    }
+    if(!best) break;
+    const P = { x:pos.x+d.x*best.t, y:pos.y+d.y*best.t };
+    pts.push(P);
+    const N = geo.edges[best.k].n;                    // normal KELUAR prisma
+    const ci = dot(d,N);                              // cos(sudut datang di dalam kaca)
+    const sinI = Math.sqrt(Math.max(0,1-ci*ci));
+    if(n*sinI > 1){                                   // sudut datang > sudut kritis -> TIR
+      const dNew = { x:d.x-2*ci*N.x, y:d.y-2*ci*N.y };
+      events.push({ type:'tir', P, N, dIn:d, dOut:dNew, angIn:Math.acos(ci), edge:best.k });
+      d = dNew; pos = P; cur = best.k; tir++;
+      continue;
+    }
+    // Pembiasan kaca -> udara: n1 = n, n2 = 1, normal menghadap kaca = -N
+    const ct = Math.sqrt(1 - n*n*sinI*sinI);
+    const dOut = { x:n*d.x+(ct-n*ci)*N.x, y:n*d.y+(ct-n*ci)*N.y };
+    events.push({ type:'exit', P, N, dIn:d, dOut, angIn:Math.acos(ci), angOut:Math.acos(ct), edge:best.k });
+    exited = true; outDir = dOut; exitEdge = best.k;
+    break;
+  }
+
+  // Perpanjang sinar keluar sampai layar
+  let hitScreen = false, exitPoint = null, endPoint = null;
+  if(exited){
+    exitPoint = pts[pts.length-1];
+    let t;
+    if(outDir.x > 0.02){ t = (geo.screenX-exitPoint.x)/outDir.x; hitScreen = t>0; }
+    else t = 1500;
+    if(!(t>0)) t = 120;
+    t = Math.min(t,3000);
+    endPoint = { x:exitPoint.x+outDir.x*t, y:exitPoint.y+outDir.y*t };
+    pts.push(endPoint);
+  }
+  // panjang kumulatif (untuk animasi denyut cahaya)
+  const cum = [0];
+  for(let i=1;i<pts.length;i++) cum.push(cum[i-1]+dist(pts[i-1],pts[i]));
+
+  // --- (3) Besaran sudut & deviasi ---
+  // Jalur langsung (tanpa TIR, keluar lewat muka kanan):
+  //   r1 = arcsin(sin i1 / n),  i2 = A - r1,  sin r2 = n sin i2,  δ = i1 + r2 - A
+  const r1 = Math.asin(Math.sin(i1rad)/n);
+  const direct = (tir===0 && exitEdge===2);
+  let i2, r2 = null, delta = NaN;
+  const lastEv = events[events.length-1];
+  if(direct){
+    i2 = Arad - r1;
+    r2 = Math.asin(n*Math.sin(i2));
+    delta = i1rad + r2 - Arad;
+  } else {
+    i2 = events[1] ? events[1].angIn : NaN;           // sudut datang di antarmuka dalam pertama
+    if(exited){
+      r2 = lastEv.angOut;
+      delta = Math.acos(Math.max(-1,Math.min(1,dot(geo.d0,outDir)))); // sudut antara arah awal & akhir
+    }
+  }
+  return Object.assign({}, meta, { n, pts, cum, events, tir, exited, exitEdge, outDir, direct,
+    r1, i2, r2, delta, hitScreen, exitPoint, endPoint,
+    thetaC: Math.asin(Math.min(1,1/n)) });
+}
+
+/* =====================================================================
+   SCENE CACHE — dihitung ulang hanya saat parameter / ukuran berubah
+   ===================================================================== */
+const canvas = document.getElementById('sim');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('wrap');
+let view = { W:800, H:560, dpr:1 };
+let C = null;
+
+function recompute(){
+  const { W,H } = view;
+  const A = state.A*DEG, i1 = state.i1*DEG;
+  const geo = buildGeometry(W,H,A,i1);
+  const co = cauchyCoeffs(state.n, state.disp);
+  const paths = SPECTRUM.map(s => traceRay(nOf(s.lambda,co), A, i1, geo, s));
+  // pita spektrum kontinu (400–700 nm) untuk visual "fan-out"
+  const samples = [];
+  for(let l=700; l>=400; l-=7.5){
+    const p = traceRay(nOf(l,co), A, i1, geo, { lambda:l, color:wavelengthToRGB(l) });
+    samples.push(p);
+  }
+  C = { geo, co, paths, samples, A, i1 };
+  updateTelemetry();
+}
+
+/* =====================================================================
+   RENDER CANVAS
+   ===================================================================== */
+function strokePoly(pts, style, width, blur, glow){
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.lineWidth = width; ctx.strokeStyle = style;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.shadowBlur = blur; ctx.shadowColor = glow || 'transparent';
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+// Berkas bercahaya: lapisan halo lebar + inti tajam (compositing 'lighter')
+function beam(pts, rgb, k){
+  strokePoly(pts, rgba(rgb,0.10*k), 11, 0);
+  strokePoly(pts, rgba(rgb,0.26*k), 4.5, 16, rgba(rgb,0.9));
+  strokePoly(pts, rgba(rgb,0.95*k), 1.7, 10, rgba(rgb,1));
+}
+
+function slicePoly(pts, cum, a, b){
+  const total = cum[cum.length-1];
+  a = Math.max(a,0); b = Math.min(b,total);
+  if(b<=a) return null;
+  const out = [];
+  for(let i=0;i<pts.length-1;i++){
+    const s0=cum[i], s1=cum[i+1], seg=s1-s0;
+    if(s1<a || s0>b || seg<=0) continue;
+    const ta=Math.max(a,s0), tb=Math.min(b,s1);
+    if(!out.length) out.push(lerp(pts[i],pts[i+1],(ta-s0)/seg));
+    out.push(lerp(pts[i],pts[i+1],(tb-s0)/seg));
+  }
+  return out.length>1 ? out : null;
+}
+
+function label(txt,x,y,color,align='center',size=13){
+  ctx.font = `600 ${size}px "Segoe UI",system-ui,sans-serif`;
+  ctx.textAlign = align; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(15,23,42,.9)'; ctx.lineJoin = 'round';
+  ctx.strokeText(txt,x,y);
+  ctx.fillStyle = color; ctx.fillText(txt,x,y);
+}
+
+function arcMark(c, from, to, r, color, txt, lr){
+  let diff = to-from;
+  while(diff>Math.PI) diff -= 2*Math.PI;
+  while(diff<-Math.PI) diff += 2*Math.PI;
+  ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.arc(c.x,c.y,r,from,from+diff,diff<0); ctx.closePath();
+  ctx.fillStyle = color.replace(/[\d.]+\)$/,'0.16)'); ctx.fill();
+  ctx.beginPath(); ctx.arc(c.x,c.y,r,from,from+diff,diff<0);
+  ctx.lineWidth = 1.8; ctx.strokeStyle = color; ctx.stroke();
+  const m = from+diff/2;
+  label(txt, c.x+Math.cos(m)*lr, c.y+Math.sin(m)*lr, color);
+}
+
+function normalLine(P,N,len){
+  ctx.save();
+  ctx.setLineDash([6,6]); ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(226,232,240,.55)';
+  ctx.beginPath(); ctx.moveTo(P.x-N.x*len,P.y-N.y*len); ctx.lineTo(P.x+N.x*len,P.y+N.y*len); ctx.stroke();
+  ctx.restore();
+}
+
+function drawBackground(){
+  const {W,H} = view;
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0f172a'); g.addColorStop(1,'#1e1e2e');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = 'rgba(148,163,184,.10)';
+  for(let x=20;x<W;x+=40) for(let y=20;y<H;y+=40) ctx.fillRect(x,y,1.4,1.4);
+}
+
+function drawScreen(){
+  const {W,H} = view, x = C.geo.screenX;
+  const g = ctx.createLinearGradient(x-5,0,x+7,0);
+  g.addColorStop(0,'#334155'); g.addColorStop(1,'#0b1220');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.roundRect(x-5,30,12,H-60,4); ctx.fill();
+  ctx.strokeStyle = 'rgba(148,163,184,.35)'; ctx.lineWidth = 1; ctx.stroke();
+  label('LAYAR', x+1, 18, '#94a3b8','center',11);
+}
+
+function drawLaser(){
+  const { S,d0 } = C.geo;
+  ctx.save();
+  ctx.translate(S.x,S.y); ctx.rotate(ang(d0));
+  const g = ctx.createLinearGradient(0,-14,0,14);
+  g.addColorStop(0,'#64748b'); g.addColorStop(.5,'#334155'); g.addColorStop(1,'#1e293b');
+  ctx.fillStyle = g; ctx.strokeStyle = 'rgba(203,213,225,.55)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.roundRect(-72,-14,72,28,6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(-8,-9,8,18);                   // lensa kolimator
+  ctx.fillStyle = '#f87171'; ctx.shadowColor = '#f87171'; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.arc(-58,0,3,0,7); ctx.fill(); ctx.shadowBlur = 0; // LED
+  ctx.fillStyle = '#cbd5e1'; ctx.font = '700 9px "Segoe UI",sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  if(Math.cos(ang(d0))>0) ctx.fillText('LASER',-48,0);
+  ctx.restore();
+}
+
+function drawPrismFill(){
+  const { V0,V1,V2 } = C.geo;
+  const g = ctx.createLinearGradient(V1.x,V0.y,V2.x,V2.y);
+  g.addColorStop(0,'rgba(125,211,252,.20)');
+  g.addColorStop(.5,'rgba(56,189,248,.07)');
+  g.addColorStop(1,'rgba(165,180,252,.16)');
+  ctx.beginPath(); ctx.moveTo(V0.x,V0.y); ctx.lineTo(V1.x,V1.y); ctx.lineTo(V2.x,V2.y); ctx.closePath();
+  ctx.fillStyle = g; ctx.fill();
+}
+
+function drawPrismStroke(){
+  const { V0,V1,V2 } = C.geo;
+  ctx.beginPath(); ctx.moveTo(V0.x,V0.y); ctx.lineTo(V1.x,V1.y); ctx.lineTo(V2.x,V2.y); ctx.closePath();
+  ctx.lineWidth = 1.8; ctx.strokeStyle = 'rgba(125,225,255,.85)';
+  ctx.shadowColor = 'rgba(34,211,238,.8)'; ctx.shadowBlur = 14; ctx.stroke(); ctx.shadowBlur = 0;
+  // kilau tepi (efek kaca semi-reflektif)
+  ctx.beginPath(); ctx.moveTo(V0.x-1,V0.y+10); ctx.lineTo(V1.x+9,V1.y-4);
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.stroke();
+  const mid = lerp(V1,V2,0.5);
+  label(`Prisma  n = ${f(state.n,2)} (580 nm)`, mid.x, mid.y+20, 'rgba(165,243,252,.9)','center',12);
+}
+
+function currentShown(){
+  return state.mode==='poly' ? C.paths : [C.paths[state.mono]];
+}
+
+function drawFanAndScreen(){
+  // Pita spektrum kontinu: kipas berwarna dari titik keluar ke layar
+  const s = C.samples;
+  for(let i=0;i<s.length-1;i++){
+    const p=s[i], q=s[i+1];
+    if(!(p.exited&&q.exited&&p.hitScreen&&q.hitScreen)) continue;
+    const col = rgba(p.color,0.085);
+    ctx.beginPath();
+    ctx.moveTo(p.exitPoint.x,p.exitPoint.y); ctx.lineTo(p.endPoint.x,p.endPoint.y);
+    ctx.lineTo(q.endPoint.x,q.endPoint.y);   ctx.lineTo(q.exitPoint.x,q.exitPoint.y);
+    ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = col; ctx.stroke();
+  }
+  // Pita pada layar
+  for(let i=0;i<s.length-1;i++){
+    const p=s[i], q=s[i+1];
+    if(!(p.hitScreen&&q.hitScreen)) continue;
+    ctx.beginPath(); ctx.moveTo(p.endPoint.x+1,p.endPoint.y); ctx.lineTo(q.endPoint.x+1,q.endPoint.y);
+    ctx.lineWidth = 11; ctx.lineCap = 'butt'; ctx.strokeStyle = rgba(p.color,0.95);
+    ctx.shadowColor = rgba(p.color,1); ctx.shadowBlur = 14; ctx.stroke(); ctx.shadowBlur = 0;
+  }
+}
+
+function drawBeams(){
+  const poly = state.mode==='poly', { geo } = C;
+  const shown = currentShown();
+  const inc = [geo.S,geo.E];
+  const incColor = poly ? [255,255,255] : SPECTRUM[state.mono].color;
+  const k = poly ? 0.7 : 1;
+
+  beam(inc, incColor, 1);                                   // sinar datang tajam
+  shown.forEach(p => beam(p.pts.slice(1), p.color, k));     // sinar tiap warna (menyatu lalu terpisah)
+
+  // Spot warna pada layar
+  shown.forEach(p=>{
+    if(!p.hitScreen) return;
+    const g = ctx.createRadialGradient(p.endPoint.x,p.endPoint.y,0,p.endPoint.x,p.endPoint.y,16);
+    g.addColorStop(0,rgba(p.color,.95)); g.addColorStop(1,rgba(p.color,0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.endPoint.x,p.endPoint.y,16,0,7); ctx.fill();
+  });
+
+  // Denyut cahaya bergerak sepanjang lintasan (animasi)
+  const SE = dist(geo.S,geo.E), speed = 250, spacing = 170, plen = 32;
+  const phase = (state.time*speed) % spacing;
+  const pulse = (seg,rgb)=>{ strokePoly(seg,'rgba(255,255,255,.9)',3.2,14,rgba(rgb,1)); };
+  for(let s=phase-spacing; s<SE; s+=spacing){
+    const seg = slicePoly(inc,[0,SE],s,s+plen); if(seg) pulse(seg,incColor);
+  }
+  shown.forEach(p=>{
+    const total = p.cum[p.cum.length-1];
+    for(let s=phase-spacing; s<total; s+=spacing){
+      const a = Math.max(s,SE), b = s+plen;
+      if(b>a){ const seg = slicePoly(p.pts,p.cum,a,b); if(seg) pulse(seg,p.color); }
+    }
+  });
+}
+
+function drawScreenLabels(){
+  const shown = currentShown().filter(p=>p.hitScreen);
+  if(!shown.length) return;
+  const x = C.geo.screenX + 14;
+  let lastY = -99;
+  const ordered = shown.slice().sort((a,b)=>a.endPoint.y-b.endPoint.y);
+  ordered.forEach((p,idx)=>{
+    const y = p.endPoint.y;
+    const isEnd = idx===0 || idx===ordered.length-1;
+    if(state.mode==='poly' && !isEnd && y-lastY<15) return;
+    if(y-lastY<14 && state.mode==='poly') return;
+    label(p.name, x, y, rgba(p.color,1),'left',11);
+    lastY = y;
+  });
+}
+
+function drawStraight(){
+  const { E,d0,screenX } = C.geo;
+  const t = (screenX-E.x)/Math.max(d0.x,0.05);
+  const end = { x:E.x+d0.x*t, y:E.y+d0.y*t };
+  ctx.save();
+  ctx.setLineDash([9,7]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(248,250,252,.6)';
+  ctx.beginPath(); ctx.moveTo(E.x,E.y); ctx.lineTo(end.x,end.y); ctx.stroke();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(end.x,end.y,5,0,7); ctx.strokeStyle = 'rgba(248,250,252,.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+  const q = lerp(E,end,0.8);
+  label('lintasan lurus (tanpa pembiasan)', q.x, q.y+(d0.y>=0?-14:14), 'rgba(248,250,252,.75)','center',11);
+
+  // Busur sudut deviasi δ antara arah awal dan arah akhir sinar acuan
+  const ref = state.mode==='poly' ? C.paths[REF] : C.paths[state.mono];
+  if(ref.exited && ref.hitScreen){
+    const den = cross(d0,ref.outDir);
+    if(Math.abs(den)>1e-6){
+      const tt = cross(sub(ref.exitPoint,E),ref.outDir)/den;
+      const I = { x:E.x+d0.x*tt, y:E.y+d0.y*tt };
+      if(I.x>10 && I.x<screenX-30 && I.y>10 && I.y<view.H-10){
+        ctx.save(); ctx.setLineDash([3,5]); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(253,186,116,.7)';
+        ctx.beginPath(); ctx.moveTo(I.x,I.y); ctx.lineTo(ref.exitPoint.x,ref.exitPoint.y); ctx.stroke(); ctx.restore();
+        arcMark(I, ang(d0), ang(ref.outDir), 58, 'rgba(253,186,116,1)', `δ = ${f(ref.delta/DEG,1)}°`, 82);
+      }
+    }
+  }
+}
+
+function drawAnnotations(){
+  const { geo,paths } = C;
+  const ref = state.mode==='poly' ? paths[REF] : paths[state.mono];
+  const ev = ref.events;
+  const cB = 'rgba(125,211,252,1)', cY = 'rgba(252,211,77,1)';
+
+  // Sudut puncak A
+  const a1 = ang(sub(geo.V1,geo.V0)), a2 = ang(sub(geo.V2,geo.V0));
+  arcMark(geo.V0, a1, a2, 30, 'rgba(196,181,253,1)', `A = ${f(state.A,1)}°`, 56);
+
+  // Antarmuka masuk (udara -> kaca)
+  const e0 = ev[0];
+  normalLine(e0.P,e0.N,100);
+  arcMark(e0.P, ang(e0.N), ang(neg(e0.dIn)), 54, cB, `i₁ = ${f(state.i1,1)}°`, 80);
+  arcMark(e0.P, ang(neg(e0.N)), ang(e0.dOut), 44, cY, `r₁ = ${f(ref.r1/DEG,1)}°`, 66);
+
+  // Antarmuka dalam pertama
+  const e1 = ev[1];
+  if(e1){
+    normalLine(e1.P,e1.N,100);
+    arcMark(e1.P, ang(neg(e1.N)), ang(neg(e1.dIn)), 40, cY, `i₂ = ${f(e1.angIn/DEG,1)}°`, 62);
+    if(e1.type==='exit'){
+      arcMark(e1.P, ang(e1.N), ang(e1.dOut), 54, cB, `r₂ = ${f(e1.angOut/DEG,1)}°`, 80);
+    } else {
+      label('TIR!  i₂ > θc', e1.P.x+e1.N.x*34, e1.P.y+e1.N.y*34, 'rgba(252,165,165,1)','center',12);
+    }
+  }
+}
+
+function draw(){
+  const { W,H } = view;
+  ctx.globalCompositeOperation = 'source-over';
+  drawBackground();
+  if(!C) return;
+  drawScreen();
+  drawLaser();
+  drawPrismFill();
+
+  ctx.globalCompositeOperation = 'lighter';
+  if(state.mode==='poly') drawFanAndScreen();
+  drawBeams();
+  ctx.globalCompositeOperation = 'source-over';
+
+  drawPrismStroke();
+  drawScreenLabels();
+  if(state.showStraight) drawStraight();
+  if(state.showNormal) drawAnnotations();
+
+  label(`Cauchy: n(λ) = B + C/λ²   •   dispersi diperbesar ×${state.disp} (visual)`, 14, H-16, 'rgba(148,163,184,.85)','left',11);
+}
+
+/* =====================================================================
+   TELEMETRI & PANEL INFORMASI
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+function setTxt(id,v){ $(id).textContent = v; }
+
+function pathNote(p){
+  if(!p.exited) return 'terjebak di dalam prisma';
+  if(p.tir>0)   return `TIR ×${p.tir}, keluar via ${p.exitEdge===1?'alas':p.exitEdge===0?'muka kiri':'muka kanan'}`;
+  if(p.exitEdge===1) return 'dibiaskan keluar via alas';
+  return 'pembiasan normal';
+}
+
+function updateTelemetry(){
+  const poly = state.mode==='poly';
+  const { paths,co } = C;
+  const ref = poly ? paths[REF] : paths[state.mono];
+  const red = paths[0], vio = paths[6];
+  const deg = x => Number.isFinite(x) ? f(x/DEG,2)+'°' : '—';
+
+  document.querySelectorAll('.refName').forEach(e=>e.textContent = poly ? 'kuning 580 nm' : `${ref.name.toLowerCase()} ${ref.lambda} nm`);
+  setTxt('tI1', f(state.i1,2)+'°');
+  setTxt('tR1', deg(ref.r1));
+  setTxt('tI2', deg(ref.i2));
+  setTxt('tR2', ref.r2==null ? '— (TIR)' : deg(ref.r2));
+  setTxt('tNr', f(red.n,4));
+  setTxt('tNv', f(vio.n,4));
+  setTxt('tDn', f(vio.n-red.n,4));
+  setTxt('tDref', deg(ref.delta));
+  setTxt('tDr', deg(red.delta));
+  setTxt('tDv', deg(vio.delta));
+  setTxt('tDd', (red.direct&&vio.direct) ? f((vio.delta-red.delta)/DEG,3)+'°' : '—');
+  // δ minimum: δmin = 2·arcsin(n·sin(A/2)) − A (bila sin(...) ≤ 1)
+  const sm = ref.n*Math.sin(C.A/2);
+  setTxt('tDmin', sm<=1 ? f((2*Math.asin(sm)-C.A)/DEG,2)+'°' : '—');
+  setTxt('tThc', `${f(red.thetaC/DEG,1)}° / ${f(vio.thetaC/DEG,1)}°`);
+  setTxt('coefs', `B = ${f(co.B,5)}   C = ${f(co.C,5)} µm²`);
+
+  // Tabel per warna
+  const shown = poly ? paths : [paths[state.mono]];
+  $('rows').innerHTML = shown.map(p=>`
+    <tr><td><span class="dot" style="background:${rgba(p.color,1)};box-shadow:0 0 8px ${rgba(p.color,1)}"></span>${p.name}</td>
+    <td>${p.lambda}</td><td>${f(p.n,4)}</td><td>${f(p.r1/DEG,2)}</td><td>${f(p.i2/DEG,2)}</td>
+    <td>${p.r2==null?'—':f(p.r2/DEG,2)}</td><td>${Number.isFinite(p.delta)?f(p.delta/DEG,2):'—'}</td><td>${pathNote(p)}</td></tr>`).join('');
+
+  // Keterangan kondisi fisik
+  const tirList = shown.filter(p=>p.tir>0).map(p=>p.name);
+  const trapped = shown.filter(p=>!p.exited).length;
+  let cls='', main='', subTxt='';
+  if(tirList.length===shown.length || (trapped===shown.length)){
+    cls='tir'; main='Terjadi Pantulan Internal Total!';
+    subTxt = `Sudut datang di muka kedua melebihi sudut kritis (θc = ${f(ref.thetaC/DEG,1)}° untuk ${ref.name.toLowerCase()}); sinar dipantulkan kembali ke dalam prisma.`;
+  } else if(tirList.length>0){
+    cls='warn'; main = `Pantulan Internal Total sebagian: ${tirList.join(', ')}`;
+    subTxt = 'Warna dengan n lebih besar (θc lebih kecil) lebih dahulu mengalami TIR; warna lain masih dibiaskan keluar.';
+  } else if(poly){
+    main='Terjadi Pembiasan Normal + Dispersi';
+    subTxt = `Merah dibelokkan paling kecil (n = ${f(red.n,3)}), ungu paling besar (n = ${f(vio.n,3)}).`;
+  } else {
+    main='Terjadi Pembiasan Normal (tanpa dispersi)';
+    subTxt = 'Sinar monokromatik hanya dibelokkan, tidak terurai menjadi warna lain.';
+  }
+  const box = $('statusBox'); box.className = 'status '+cls;
+  setTxt('statusMain',main); setTxt('statusSub',subTxt);
+  const badge = $('badge'); badge.className = 'badge '+cls;
+  setTxt('badgeText',main);
+}
+
+/* =====================================================================
+   UI — SINKRONISASI KONTROL
+   ===================================================================== */
+const el = { i1:$('i1'), nn:$('nn'), AA:$('AA'), dd:$('dd'), monoSel:$('monoSel'),
+  cNormal:$('cNormal'), cStraight:$('cStraight'), bPlay:$('bPlay') };
+
+SPECTRUM.forEach((s,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${s.name} (${s.lambda} nm)`; el.monoSel.appendChild(o); });
+
+function fill(input){
+  const p = (input.value-input.min)/(input.max-input.min)*100;
+  input.style.setProperty('--p', p+'%');
+}
+function syncUI(){
+  el.i1.value = state.i1; el.nn.value = state.n; el.AA.value = state.A; el.dd.value = state.disp;
+  $('i1v').textContent = f(state.i1,1)+'°';
+  $('nnv').textContent = f(state.n,2);
+  $('AAv').textContent = f(state.A,1)+'°';
+  $('ddv').textContent = '×'+state.disp;
+  [el.i1,el.nn,el.AA,el.dd].forEach(fill);
+  document.querySelector(`input[name=mode][value=${state.mode}]`).checked = true;
+  el.monoSel.value = state.mono; el.monoSel.disabled = state.mode!=='mono';
+  el.cNormal.checked = state.showNormal; el.cStraight.checked = state.showStraight;
+  el.bPlay.textContent = state.playing ? '⏸ Pause' : '▶ Play';
+}
+function readAndUpdate(){
+  state.i1 = +el.i1.value; state.n = +el.nn.value; state.A = +el.AA.value; state.disp = +el.dd.value;
+  syncUI(); recompute();
+}
+[el.i1,el.nn,el.AA,el.dd].forEach(i=>i.addEventListener('input',readAndUpdate));
+document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener('change',()=>{
+  state.mode = document.querySelector('input[name=mode]:checked').value; syncUI(); recompute();
+}));
+el.monoSel.addEventListener('change',()=>{ state.mono = +el.monoSel.value; recompute(); });
+el.cNormal.addEventListener('change',()=>{ state.showNormal = el.cNormal.checked; });
+el.cStraight.addEventListener('change',()=>{ state.showStraight = el.cStraight.checked; });
+el.bPlay.addEventListener('click',()=>{ state.playing = !state.playing; syncUI(); });
+$('bReset').addEventListener('click',()=>{ Object.assign(state,DEFAULTS,{playing:true,time:0}); syncUI(); recompute(); });
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{ state.n = +c.dataset.n; syncUI(); recompute(); }));
+$('bMin').addEventListener('click',()=>{
+  // Deviasi minimum terjadi pada lintasan simetris: sin(i1) = n·sin(A/2)
+  const n = state.mode==='poly' ? C.paths[REF].n : C.paths[state.mono].n;
+  const s = n*Math.sin(state.A*DEG/2);
+  state.i1 = s<=1 ? Math.min(80, Math.round(Math.asin(s)/DEG*10)/10) : 80;
+  syncUI(); recompute();
+});
+
+/* =====================================================================
+   RESIZE & LOOP ANIMASI
+   ===================================================================== */
+function resize(){
+  const r = wrap.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  view = { W:Math.max(320,r.width), H:Math.max(300,r.height), dpr };
+  canvas.width = Math.round(view.W*dpr); canvas.height = Math.round(view.H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  recompute();
+}
+new ResizeObserver(resize).observe(wrap);
+
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05,(now-last)/1000); last = now;
+  if(state.playing) state.time += dt;
+  draw();
+  requestAnimationFrame(frame);
+}
+
+syncUI();
+resize();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
